@@ -1,0 +1,106 @@
+#Nginx Reverse Proxy with Multi-Service Routing on EC2 + Docker.
+
+##PHASE 1 — Prepare Ubuntu EC2
+1. SSH into Ubuntu EC2
+=> ssh -i key.pem ubuntu@<EC2_PUBLIC_IP>
+
+2. Update system
+=> sudo apt update -y
+=> sudo apt upgrade -y
+
+3. Install Docker
+=> sudo apt install -y docker.io
+=> sudo systemctl enable --now docker
+=> sudo usermod -aG docker ubuntu
+Important: Log out and SSH back in so docker permissions are applied.
+
+4. Install Nginx
+=> sudo apt install -y nginx
+=> sudo systemctl enable --now nginx
+
+
+##PHASE 2 — Build Two Docker Apps
+1. APP 1
+=> mkdir app1 && cd app1
+=> echo "<h1>App 1 - Ubuntu EC2 + Docker</h1>" > index.html
+=> cat <<EOF > Dockerfile
+FROM nginx:latest
+COPY . /usr/share/nginx/html
+EOF
+
+=> docker build -t app1:v1 .
+=> docker run -d --name app1 -p 8081:80 app1:v1
+=> cd ..
+
+
+2. APP 2
+=> mkdir app1 && cd app1
+=> echo "<h1>App 2 - Ubuntu EC2 + Docker</h1>" > index.html
+=> cat <<EOF > Dockerfile
+FROM nginx:latest
+COPY . /usr/share/nginx/html
+EOF
+
+=>docker build -t app2:v1 .
+=> docker run -d --name app2 -p 8082:80 app2:v1
+=> cd ..
+
+
+##Test locally:
+=> curl localhost:8081
+=> curl localhost:8082
+
+
+##PHASE 3 — Configure Nginx Reverse Proxy
+1. Edit Nginx default site
+=> sudo nano /etc/nginx/sites-available/default
+
+2. Inside server {} block, add:
+=> location /app1/ {
+    proxy_pass http://localhost:8081/;
+}
+
+location /app2/ {
+    proxy_pass http://localhost:8082/;
+}
+
+2. Check syntax and restart:
+=> sudo nginx -t
+=> sudo systemctl restart nginx
+
+
+##PHASE 4 — Validate Routing
+1. Test
+=> http://<EC2_PUBLIC_IP>/app1/ → App 1 content
+=> http://<EC2_PUBLIC_IP>/app2/ → App 2 content
+
+
+##PHASE 5 — Optional Hardening
+1. Hide Nginx version
+1.1. Edit /etc/nginx/nginx.conf inside http {} block:
+=> server_tokens off;
+
+1.2. Restart Nginx:
+=> sudo systemctl restart nginx
+
+2. Close direct app ports
+=> sudo ufw allow 80/tcp
+=> sudo ufw allow 22/tcp
+=> sudo ufw enable
+=> sudo ufw status
+
+✅ Mission Complete on Ubuntu EC2
+You now have:
+1. Ubuntu-based Docker multi-app deployment
+2. Nginx reverse proxy routing traffic to /app1 and /app2
+3. Secured port exposure
+4. Ready for optional SSL, Docker Compose, or scaling
+
+
+
+
+
+
+
+
+
